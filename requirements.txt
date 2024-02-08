@@ -1,0 +1,6 @@
+fastapi~=0.109.2
+uvicorn
+google-cloud-storage
+sqlalchemy
+python-multipart
+pydantic~=2.6.1
