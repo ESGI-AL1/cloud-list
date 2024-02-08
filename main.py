@@ -13,7 +13,7 @@ class Task(BaseModel):
     description: Optional[str] = None
     completed: bool = False
     file_url: Optional[str] = None
-    creator_name: str  # Add this line
+    creator_name: str
 
 
 tasks = {}
@@ -25,7 +25,8 @@ async def get_all_tasks(limit: int = 15):
 
 
 @app.post("/tasks/", response_model=Task)
-async def create_task(title: str = Form(...), description: str = Form(None), completed: bool = Form(False), creator_name: str = Form(...), file: UploadFile = File(None)):
+async def create_task(title: str = Form(...), description: str = Form(None), completed: bool = Form(False),
+                      creator_name: str = Form(...), file: UploadFile = File(None)):
     task_id = uuid.uuid4()
     file_url = None
     if file:
