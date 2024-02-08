@@ -1,9 +1,11 @@
-FROM python:3.10-alpine
+FROM python:3.11-alpine
 
 WORKDIR /app
 
 COPY requirements.txt requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
+
+RUN mkdir /app/files && chmod 777 /app/files
 
 COPY . .
 
