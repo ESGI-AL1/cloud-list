@@ -1,0 +1,73 @@
+<br>
+<br>
+<br>
+<br>
+<div class="flex justify-center">
+  <h3 class="text-3xl font-bold text-red-500">
+    TO DO List
+  </h3>
+</div>
+
+<div class="input-container flex justify-center space-x-2 bg-white p-8 rounded shadow">
+  <input [(ngModel)]="taskTitle" type="text" class="w-96 p-2 rounded border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Entrez quelque chose...">
+  <div (click)="toggleTaskForm()" class="cursor-pointer px-4 py-2 bg-red-400 text-white rounded hover:bg-red-500 transition duration-150 ease-in-out">
+    Add new task
+  </div>
+</div>
+
+<div class="flex justify-center items-center min-h-screen bg-gray-100" *ngIf="this.isToggleTaskForm">
+  <form [formGroup]="taskForm"  class="w-full max-w-lg bg-white shadow-md rounded px-8 pt-6 pb-8 mb-4">
+    <div class="mb-4">
+      <label class="block text-gray-700 text-sm font-bold mb-2" for="title">
+        Title *
+      </label>
+      <input formControlName="title" id="title" placeholder="Enter Title" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
+    </div>
+    <div class="mb-4">
+      <label class="block text-gray-700 text-sm font-bold mb-2" for="description">
+        Description
+      </label>
+      <textarea formControlName="description" id="description" placeholder="Enter Description" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"></textarea>
+    </div>
+    <div class="mb-6">
+      <label class="block text-gray-700 text-sm font-bold mb-2" for="creator_name">
+        Creator Name *
+      </label>
+      <input formControlName="creator_name" id="creator_name" placeholder="Enter Creator Name" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 mb-3 leading-tight focus:outline-none focus:shadow-outline">
+    </div>
+    <div class="mb-6">
+      <label class="block text-gray-700 text-sm font-bold mb-2" for="deadline">
+        Deadline
+      </label>
+      <input formControlName="deadline" id="deadline" type="date" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
+    </div>
+    <div class="mb-6">
+      <label class="block text-gray-700 text-sm font-bold mb-2" for="file">
+        File
+      </label>
+      <input type="file" formControlName="file" id="file" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
+    </div>
+
+    <div class="flex items-center justify-between">
+      <button (click)="createTask()"  class="bg-red-500 hover:bg-green-500 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline" type="submit">
+        Submit
+      </button>
+      <button (click)="cancel()" class="bg-black hover:bg-red-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline" type="submit">
+        Cancel
+      </button>
+
+    </div>
+  </form>
+</div>
+
+<div class="flex flex-wrap justify-center gap-4" *ngIf="!isToggleTaskForm && this.tasks">
+  <div *ngFor="let task of tasks" class="w-96 bg-white rounded-lg shadow-md overflow-hidden">
+    <div class="p-5">
+      <h2 class="text-xl font-bold mb-2">{{ task.title }}</h2>
+      <p class="text-gray-700">{{ task.description }}</p>
+    </div>
+  </div>
+</div>
+
+
+
