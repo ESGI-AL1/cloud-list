@@ -14,13 +14,14 @@ export class TaskServicesService {
 
   constructor(private http :HttpClient ) {
 
-
   }
 
-  createTask(task: Task): Observable<Task | ValidationErrors> {
-    return this.http.post<Task>(this.API_URL + '/task/', task).pipe(
-      catchError(err => throwError(() => new Error(err)))
-    );
+  createTask(task: Task): Observable<Task> {
+    return this.http.post<Task>(this.API_URL + '/tasks/', task)
+  }
+
+  createTaskFormData(taskData: FormData): Observable<Task> {
+    return this.http.post<Task>(this.API_URL+ '/tasks/', taskData);
   }
 
   getAllTask(): Observable<Task[]> {
@@ -30,9 +31,8 @@ export class TaskServicesService {
   }
 
   deleteByTaskId(taskId: string): Observable<any> {
-    return this.http.delete(`${this.API_URL}/tasks/${taskId}`).pipe(
-      catchError(err => throwError(() => new Error(err)))
-    );
+    return this.http.delete(`${this.API_URL}/tasks/${taskId}`)
+
   }
 
   updateByTaskId(taskId: string, task: Task): Observable<Task> {
@@ -40,4 +40,6 @@ export class TaskServicesService {
       catchError(err => throwError(() => new Error(err)))
     );
   }
+
+
 }
