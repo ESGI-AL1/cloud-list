@@ -4,13 +4,28 @@ from fastapi import FastAPI, File, UploadFile, HTTPException, Form
 from pydantic import BaseModel
 import uuid
 import shutil
-
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic.v1 import validator
+
 
 app = FastAPI(
     title="Cloud-list API",
     description="A simple to-do list using cloud services",
     version="0.0.1")
+
+
+origins = [
+    "http://localhost:4200",
+    "http://localhost:8080",
+]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 class Task(BaseModel):
