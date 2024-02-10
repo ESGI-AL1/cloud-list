@@ -35,10 +35,8 @@ export class TaskServicesService {
 
   }
 
-  updateByTaskId(taskId: string, task: Task): Observable<Task> {
-    return this.http.put<Task>(`${this.API_URL}/tasks/${taskId}`, task).pipe(
-      catchError(err => throwError(() => new Error(err)))
-    );
+  updateTask(taskId: string, task: FormData): Observable<any> {
+    return this.http.put(`${this.API_URL}/tasks/${taskId}`, task);
   }
 
 

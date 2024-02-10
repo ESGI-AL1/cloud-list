@@ -1,7 +1,7 @@
 import {Component, HostListener, OnInit} from '@angular/core';
 import { RouterOutlet } from '@angular/router';
 import {FormBuilder, FormControl, FormGroup, FormsModule, ReactiveFormsModule, Validators} from "@angular/forms";
-import {DatePipe, NgForOf, NgIf} from "@angular/common";
+import {DatePipe, NgClass, NgForOf, NgIf} from "@angular/common";
 import {TaskServicesService} from "./Services/task-services.service";
 import {Task} from "./Models/Task";
 import {finalize} from "rxjs";
@@ -9,12 +9,33 @@ import {finalize} from "rxjs";
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [RouterOutlet, ReactiveFormsModule, FormsModule, NgIf, NgForOf, DatePipe],
+  imports: [RouterOutlet, ReactiveFormsModule, FormsModule, NgIf, NgForOf, DatePipe, NgClass],
   templateUrl: './app.component.html',
   styleUrl: './app.component.scss'
 })
 export class AppComponent implements OnInit{
+  updateForm!: FormGroup;
+  currentMenuIndex: number | null = null;
+  showModalDelete: boolean = false;
+  existingFileName: string = '';
+  title = 'front';
+  taskTitle: string = '';
+  protected isToggleTaskForm: boolean = false;
+  protected tasks: Task[] | undefined = undefined;
+  showModal = false;
+  selectedTask: Task | null = null;
+  public isToggleUpdateForm: boolean = false;
+  isNotToggleForm: boolean = true;
 
+  constructor(private formBuilder : FormBuilder , private taskService: TaskServicesService){}
+  ngOnInit() {
+    this.taskService.getAllTask().subscribe(result=>{
+      this.tasks = result
+    })
+  }
+
+
+  activeTag: string = 'all';
   taskForm = new FormGroup({
     title: new FormControl('', Validators.required),
     description: new FormControl(''),
@@ -23,42 +44,84 @@ export class AppComponent implements OnInit{
     deadline: new FormControl(''),
     file: new FormControl(null)
   });
-  title = 'front';
-  // taskForm!: FormGroup
-  taskTitle: string = '';
-  protected isToggleTaskForm: boolean = false;
-  protected tasks: Task[] | undefined = undefined;
-  showModal = false;
-  selectedTask: Task | null = null;
 
-  constructor(private formBuilder : FormBuilder , private taskService: TaskServicesService){
-
-  }
-  ngOnInit() {
-    this.taskService.getAllTask().subscribe(result=>{
-      this.tasks = result
-      console.log(result)
-    })
-
-
+  initializeForm(): void {
+    this.updateForm = this.formBuilder.group({
+      title: [''],
+      description: [''],
+      completed: [false],
+      creator_name: [''],
+      deadline: [''],
+      file: [null]
+    });
   }
 
-  resetForm() {
+  loadTaskDetails(task: Task): void {
+    this.updateForm.patchValue({
+      title: task.title,
+      description: task.description,
+      completed: task.completed,
+      creator_name: task.creator_name,
+      deadline: task.deadline ? new Date(task.deadline).toISOString().substring(0, 10) : null,
+    });
+    if (task.file_url) {
+      const fileName = task.file_url.split('/').pop();
+      this.existingFileName = fileName ? fileName : 'Attached file';
+    } else {
+      this.existingFileName = '';
+    }
+
+  }
+
+  updateTask(taskId: string | null | undefined): void {
+    if(taskId){
+      if (this.updateForm) {
+        const formData = new FormData();
+        Object.keys(this.updateForm.value).forEach(key => {
+          const control = this.updateForm.get(key);
+          if (control) {
+            let value = control.value;
+
+            if (key === 'deadline' && value) {
+              value = new Date(value).toISOString().split('T')[0];
+            }
+
+            if (key === 'file' && value) {
+              formData.append(key, value, value.name);
+            } else if (value !== null) {
+              formData.append(key, value.toString());
+            }
+          }
+        });
+
+        this.taskService.updateTask(taskId, formData).subscribe({
+          next: (response) => {console.log('Task updated successfully', response);
+            this.isNotToggleForm= true
+            this.isToggleTaskForm = false
+            this.isToggleUpdateForm =false
+            this.ngOnInit()
+          },
+          error: (error) => console.error('Error updating task', error)
+        });
+      }
+    }
 
   }
 
   toggleTaskForm() {
+    this.isNotToggleForm = false
+    this.isToggleUpdateForm= false
     this.isToggleTaskForm = true
     this.taskForm.get("title")?.setValue(this.taskTitle)
   }
 
 
-
   cancel() {
     this.isToggleTaskForm = false
+    this.isToggleUpdateForm= false
+    this.isNotToggleForm = true
+
   }
-
-
 
   valid() {
     if (this.taskForm.invalid) {
@@ -91,15 +154,36 @@ export class AppComponent implements OnInit{
         this.ngOnInit();
       })
     ).subscribe({
-      next: (task) => console.log(task),
+      next: (task) => {
+        this.isNotToggleForm= true
+        this.isToggleTaskForm = false
+        this.isToggleTaskForm =false
+      },
       error: (error) => console.error('There are error !', error),
     });
   }
 
   onFileSelected(event: any) {
+    if(this.taskForm && this.isToggleTaskForm)
     if (event.target.files.length > 0) {
       const file = event.target.files[0];
       this.taskForm.patchValue({ file: file });
+    }
+    if(this.updateForm && this.isToggleUpdateForm){
+      if (event.target.files.length > 0) {
+        const file = event.target.files[0];
+        this.taskForm.patchValue({ file: file });
+      }
+    }
+  }
+
+  setActiveTag(tag: string) {
+    const completedTasks = this.tasks
+    this.activeTag = tag;
+    if(this.activeTag==="completed" && completedTasks){
+      this.tasks= this.tasks?.filter(task=> task.completed)
+    }else{
+      this.ngOnInit()
     }
   }
 
@@ -109,28 +193,33 @@ export class AppComponent implements OnInit{
       this.currentMenuIndex = null;
     }
   }
-
   toggleMenu(index: number, event: MouseEvent) {
     event.stopPropagation();
     this.currentMenuIndex = this.currentMenuIndex === index ? null : index;
   }
 
-
-
-  currentMenuIndex: number | null = null;
-  showModalDelete: boolean = false;
-
-
-
   onCheckboxChange(event: any, task: Task) {
-    task.completed = event.target.checked;
+    const formData = new FormData();
+    task.completed = !task.completed;
+    formData.append('completed', JSON.stringify(task.completed));
+    if (task && task.id) {
+      this.taskService.updateTask(task.id.toString(), formData).subscribe({
+        next: (result) => {
+          console.log("Update result:", result);
+        },
+        error: (error) => {
+          console.error("Error updating task:", error);
+        }
+      });
+    }
   }
-
 
   deleteTask(task: Task) {
     this.currentMenuIndex = null;
-    this.showModalDelete = true
-    this.selectedTask= task
+    this.showModalDelete = true;
+    this.selectedTask= task;
+    this.isNotToggleForm = true;
+
 
   }
 
@@ -138,6 +227,8 @@ export class AppComponent implements OnInit{
     this.currentMenuIndex = null;
     this.selectedTask = task;
     this.showModal = true;
+    this.isNotToggleForm = true
+
   }
 
   confirmDeleteSelectedTask(task: Task|null) {
@@ -150,37 +241,29 @@ export class AppComponent implements OnInit{
     })
 
   }
-
-
-
   cancelTaskCreation() {
     this.taskForm.reset();
     this.isToggleTaskForm = false;
-    // this.selectedTaskId = null;
-  }
+    this.isToggleUpdateForm= false;
+    this.isNotToggleForm = true
 
+  }
 
   editTask(task: Task) {
     this.currentMenuIndex = null;
-    this.isToggleTaskForm = true;
+    this.isToggleTaskForm = false;
+    this.isToggleUpdateForm= true;
+    this.isNotToggleForm = false
     this.selectedTask= task
+    this.initializeForm()
+    this.loadTaskDetails(task)
 
-
-    // this.taskForm.setValue({
-    //   title: task.title,
-    //   description: task.description || '',
-    //   completed: task.completed,
-    //   creator_name: task.creator_name,
-    //   deadline: task.deadline ? task.deadline : '',
-    //   file: null // Les champs de fichier ne peuvent pas être préremplis pour des raisons de sécurité
-    // });
-
-    // Stockez l'ID de la tâche sélectionnée pour l'utilisation lors de la soumission
-    // this.selectedTaskId = task.id; // Assurez-vous d'avoir une propriété selectedTaskId dans votre composant
   }
 
-
-  submitForm() {
-
+  cancelUpdate() {
+    this.taskForm.reset();
+    this.isToggleTaskForm = false;
+    this.isToggleUpdateForm= false;
+    this.isNotToggleForm = true
   }
 }
