@@ -35,6 +35,7 @@ class Task(BaseModel):
     completed: bool = False
     file_url: Optional[str] = None
     creator_name: str
+    email: str
 
 
 tasks = {}
@@ -57,6 +58,7 @@ async def create_task(title: str = Form(...),
                       description: str = Form(None),
                       completed: bool = Form(False),
                       creator_name: str = Form(...),
+                      email: str = Form(...),
                       deadline: Optional[str] = Form(None),
                       file: UploadFile = File(None)):
     task_id = uuid.uuid4()
@@ -67,7 +69,7 @@ async def create_task(title: str = Form(...),
         with open(file_location, "wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
         file_url = f"http://localhost:8000/{file_location}"
-    task = Task(id=task_id, title=title, description=description, completed=completed,
+    task = Task(id=task_id, title=title, email=email, description=description, completed=completed,
                 file_url=file_url, creator_name=creator_name, deadline=deadline_date)
     tasks[task_id] = task.dict()
     return task
@@ -86,6 +88,7 @@ async def update_task(task_id: uuid.UUID,
                       description: str = Form(None),
                       completed: bool = Form(None),
                       creator_name: str = Form(None),
+                      email: str = Form(None),
                       deadline: Optional[str] = Form(None),
                       file: UploadFile = File(None)):
     if task_id not in tasks:
@@ -100,6 +103,8 @@ async def update_task(task_id: uuid.UUID,
         task['completed'] = completed
     if creator_name is not None:
         task['creator_name'] = creator_name
+    if email is not None:
+        task['email'] = email
     if deadline:
         deadline_date = datetime.strptime(deadline, '%Y-%m-%d').date()
         task['deadline'] = deadline_date
