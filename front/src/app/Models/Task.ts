@@ -8,4 +8,5 @@ export interface Task {
   creator_name: string;
   deadline?: Date
   file?: any
+  email:string
 }

@@ -11,7 +11,7 @@ RUN npm install
 COPY . .
 
 
-RUN npm run build -- --outputPath=./dist/out
+RUN npm run build  --outputPath=./dist/out
 
 
 FROM nginx:alpine

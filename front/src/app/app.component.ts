@@ -39,11 +39,10 @@ export class AppComponent implements OnInit{
   taskForm = new FormGroup({
     title: new FormControl('', Validators.required),
     description: new FormControl(''),
-    completed: new FormControl(false),
     creator_name: new FormControl('', Validators.required),
     deadline: new FormControl(''),
-    file: new FormControl(null)
-  });
+    file: new FormControl(null),
+    email: new FormControl('', [Validators.required, Validators.email])})
 
   initializeForm(): void {
     this.updateForm = this.formBuilder.group({
@@ -266,4 +265,19 @@ export class AppComponent implements OnInit{
     this.isToggleUpdateForm= false;
     this.isNotToggleForm = true
   }
+
+
+  // Dans votre composant Angular
+
+  isSelectedTaskAnImage(): boolean {
+    if (!this.selectedTask?.file_url) {
+      return false;
+    } else {
+      const imageExtensions = ['png', 'jpg', 'jpeg', 'gif'];
+      const extension = this.selectedTask.file_url.split('.').pop()?.toLowerCase() ?? "";
+      return imageExtensions.includes(extension);
+    }
+  }
+
+
 }
