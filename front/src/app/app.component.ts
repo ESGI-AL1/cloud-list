@@ -51,12 +51,14 @@ export class AppComponent implements OnInit{
       completed: [false],
       creator_name: [''],
       deadline: [''],
-      file: [null]
+      file: [null],
+      email:['',[Validators.required, Validators.email]]
     });
   }
 
   loadTaskDetails(task: Task): void {
     this.updateForm.patchValue({
+      email: task.email,
       title: task.title,
       description: task.description,
       completed: task.completed,
@@ -132,6 +134,7 @@ export class AppComponent implements OnInit{
     formData.append('description', this.taskForm.get('description')?.value ?? '');
     formData.append('completed', String(this.taskForm.get('completed')?.value ?? false));
     formData.append('creator_name', this.taskForm.get('creator_name')?.value ?? '');
+    formData.append('email', this.taskForm.get('email')?.value ?? '');
 
     const deadline = this.taskForm.get('deadline')?.value
     if (deadline) {
