@@ -7,9 +7,9 @@ This project was generated with [Angular CLI](https://github.com/angular/angular
 
 
 `` cd  front``  AND 
-``docker build -t front .
+``docker build -t front-todo-list .
 `` AND
-``docker run -d -p 8080:80 nom-de-votre-image
+``docker run -d -p 4200:80 front-todo-list
 ``
 ## Development server
 
