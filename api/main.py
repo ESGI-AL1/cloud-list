@@ -1,125 +1,157 @@
-from datetime import date, datetime
-from typing import Optional, List
-from fastapi import FastAPI, File, UploadFile, HTTPException, Form
-from pydantic import BaseModel
-import uuid
+import os
 import shutil
-from fastapi.middleware.cors import CORSMiddleware
-from pydantic.v1 import validator
+import uuid
+
+from fastapi import FastAPI, HTTPException, Depends, UploadFile, File, Form
+from sqlalchemy import Column, String, Boolean, DateTime, Integer, create_engine
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import sessionmaker, Session
+from google.cloud.sql.connector import Connector, IPTypes
+from pydantic import BaseModel
+from typing import Optional, List
+from datetime import datetime
 
 
-app = FastAPI(
-    title="Cloud-list API",
-    description="A simple to-do list using cloud services",
-    version="0.0.1")
+Base = declarative_base()
+connector = Connector()
 
 
-origins = [
-    "http://localhost:4200",
-    "http://localhost:8080",
-]
+def init_connection_pool(connector: Connector):
+    def getconn():
+        conn = connector.connect(
+            "cloudlist-413718:europe-west2:sql-cloudlist",
+            "pymysql",
+            user="sql-cloudlist",
+            password="cloudlist-esgi!",
+            db="todos",
+            ip_type=IPTypes.PUBLIC
+        )
+        return conn
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=origins,
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+    engine = create_engine("mysql+pymysql://", creator=getconn)
+    return engine
 
 
-class Task(BaseModel):
-    id: Optional[uuid.UUID] = None
+engine = init_connection_pool(connector)
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+
+
+class Task(Base):
+    __tablename__ = "tasks"
+    id = Column(Integer, primary_key=True, index=True)
+    title = Column(String(255), index=True)
+    description = Column(String(255), index=True)
+    completed = Column(Boolean, default=False)
+    file_url = Column(String(255), index=True)
+    creator_name = Column(String(255), index=True)
+    email = Column(String(255), index=True)
+    deadline = Column(DateTime, index=True)
+
+
+class TaskCreate(BaseModel):
     title: str
     description: Optional[str] = None
     completed: bool = False
+    creator_name: str
+    email: str
+    deadline: Optional[datetime] = None
+
+
+class TaskUpdate(BaseModel):
+    title: Optional[str] = None
+    description: Optional[str] = None
+    completed: Optional[bool] = None
+    creator_name: Optional[str] = None
+    email: Optional[str] = None
+    deadline: Optional[datetime] = None
+
+
+class TaskPydantic(BaseModel):
+    id: int
+    title: str
+    description: Optional[str] = None
+    completed: bool
     file_url: Optional[str] = None
     creator_name: str
     email: str
+    deadline: Optional[datetime] = None
+
+    class Config:
+        orm_mode = True
 
 
-tasks = {}
+app = FastAPI()
 
 
-@validator('deadline', pre=True, allow_reuse=True)
-def deadline_not_in_past(cls, v):
-    if v is not None and datetime.strptime(v, '%Y-%m-%d').date() < datetime.now().date():
-        raise ValueError("Deadline date cannot be in the past")
-    return v
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
 
 
-@app.get("/tasks/", response_model=List[Task])
-async def get_all_tasks(limit: int = 15):
-    return list(tasks.values())[:limit]
-
-
-@app.post("/tasks/", response_model=Task)
+@app.post("/tasks/", response_model=TaskPydantic)  # Adjusted to use TaskPydantic for response model
 async def create_task(title: str = Form(...),
                       description: str = Form(None),
                       completed: bool = Form(False),
                       creator_name: str = Form(...),
                       email: str = Form(...),
                       deadline: Optional[str] = Form(None),
-                      file: UploadFile = File(None)):
-    task_id = uuid.uuid4()
-    file_url = None
+                      file: UploadFile = File(None),
+                      db: Session = Depends(get_db)):
     deadline_date = datetime.strptime(deadline, '%Y-%m-%d').date() if deadline else None
+
+    file_url = None
     if file:
+        task_id = str(uuid.uuid4())
         file_location = f"files/{task_id}_{file.filename}"
+        os.makedirs(os.path.dirname(file_location), exist_ok=True)
         with open(file_location, "wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
         file_url = f"http://localhost:8000/{file_location}"
-    task = Task(id=task_id, title=title, email=email, description=description, completed=completed,
+
+    task = Task(title=title, email=email, description=description, completed=completed,
                 file_url=file_url, creator_name=creator_name, deadline=deadline_date)
-    tasks[task_id] = task.dict()
+
+    db.add(task)
+    db.commit()
+    db.refresh(task)
     return task
 
 
-@app.get("/tasks/{task_id}", response_model=Task)
-async def get_task(task_id: uuid.UUID):
-    if task_id not in tasks:
+@app.get("/tasks/", response_model=List[TaskPydantic])
+def read_tasks(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
+    tasks = db.query(Task).offset(skip).limit(limit).all()
+    return tasks
+
+
+@app.get("/tasks/{task_id}", response_model=TaskPydantic)
+def read_task(task_id: int, db: Session = Depends(get_db)):
+    task = db.query(Task).filter(Task.id == task_id).first()
+    if task is None:
         raise HTTPException(status_code=404, detail="Task not found")
-    return tasks[task_id]
-
-
-@app.put("/tasks/{task_id}", response_model=Task)
-async def update_task(task_id: uuid.UUID,
-                      title: str = Form(None),
-                      description: str = Form(None),
-                      completed: bool = Form(None),
-                      creator_name: str = Form(None),
-                      email: str = Form(None),
-                      deadline: Optional[str] = Form(None),
-                      file: UploadFile = File(None)):
-    if task_id not in tasks:
-        raise HTTPException(status_code=404, detail="Task not found")
-
-    task = tasks[task_id]
-    if title is not None:
-        task['title'] = title
-    if description is not None:
-        task['description'] = description
-    if completed is not None:
-        task['completed'] = completed
-    if creator_name is not None:
-        task['creator_name'] = creator_name
-    if email is not None:
-        task['email'] = email
-    if deadline:
-        deadline_date = datetime.strptime(deadline, '%Y-%m-%d').date()
-        task['deadline'] = deadline_date
-    if file:
-        file_location = f"files/{task_id}_{file.filename}"
-        with open(file_location, "wb") as buffer:
-            shutil.copyfileobj(file.file, buffer)
-        task['file_url'] = f"http://localhost:8000/{file_location}"
-
-    tasks[task_id] = task
     return task
 
 
-@app.delete("/tasks/{task_id}", response_model=Task)
-async def delete_task(task_id: uuid.UUID):
-    if task_id not in tasks:
+@app.put("/tasks/{task_id}", response_model=TaskPydantic)
+def update_task(task_id: int, task_update: TaskUpdate, db: Session = Depends(get_db)):
+    task = db.query(Task).filter(Task.id == task_id).first()
+    if task is None:
         raise HTTPException(status_code=404, detail="Task not found")
-    return tasks.pop(task_id)
+    for var, value in vars(task_update).items():
+        if value is not None:
+            setattr(task, var, value)
+    db.commit()
+    db.refresh(task)
+    return task
+
+
+@app.delete("/tasks/{task_id}", response_model=TaskPydantic)
+def delete_task(task_id: int, db: Session = Depends(get_db)):
+    task = db.query(Task).filter(Task.id == task_id).first()
+    if task is None:
+        raise HTTPException(status_code=404, detail="Task not found")
+    db.delete(task)
+    db.commit()
+    return task
