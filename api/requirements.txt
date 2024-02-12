@@ -1,8 +1,9 @@
-fastapi~=0.109.2
-uvicorn
-google-cloud-storage
-sqlalchemy
-python-multipart
-pydantic~=2.6.1
-cloud-sql-python-connector
-pymysql
+google-cloud-storage==2.14.0
+sqlalchemy==2.0.26
+python-multipart==0.0.9
+pydantic==2.6.1
+cloud-sql-python-connector==1.6.0
+pymysql==1.1.0
+fastapi==0.109.2
+gunicorn==21.2.0
+uvicorn==0.27.1
