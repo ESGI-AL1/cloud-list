@@ -2,7 +2,7 @@ import os
 import shutil
 import uuid
 import requests
-from fastapi import FastAPI, HTTPException, Depends, UploadFile, File, Form
+from fastapi import FastAPI, HTTPException, Depends, UploadFile, File, Form, status
 from sqlalchemy import Column, String, Boolean, DateTime, Integer, create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, Session
@@ -108,68 +108,60 @@ def get_db():
         db.close()
 
 
-@app.post("/tasks/", response_model=TaskPydantic)  
+@app.post("/tasks/", response_model=TaskPydantic, status_code=status.HTTP_201_CREATED)
 async def create_task(
     title: str = Form(...),
-    description: str = Form(None),
-    completed: bool = Form(False),
+    description: Optional[str] = Form(None),
+    completed: Optional[bool] = Form(False),
     creator_name: str = Form(...),
     email: str = Form(...),
-    phone_number: str = Form(...), 
+    phone_number: Optional[str] = Form(None), 
     deadline: Optional[str] = Form(None),
-    file: UploadFile = File(None),
+    file: Optional[UploadFile] = File(None),  
     db: Session = Depends(get_db),
 ):
-
-    deadline_date = datetime.strptime(deadline, '%Y-%m-%d').date() if deadline else None
+    deadline_date = None
+    if deadline:
+        deadline_date = datetime.strptime(deadline, '%Y-%m-%d').date()
 
     file_url = None
     if file:
         task_id = str(uuid.uuid4())
         file_name = f"{task_id}_{file.filename}"
-
         client = storage.Client()
-        bucket = client.bucket("cloudlist-413718.appspot.com")  # Update with your bucket name
+        bucket = client.bucket("your-bucket-name")
         blob = bucket.blob(file_name)
+        await blob.upload_from_string(await file.read(), content_type=file.content_type)
+        file_url = f"https://storage.googleapis.com/your-bucket-name/{file_name}"
 
-        blob.upload_from_string(file.file.read(), content_type=file.content_type)
+    task = Task(
+        title=title,
+        description=description,
+        completed=completed,
+        creator_name=creator_name,
+        email=email,
+        phone_number=phone_number,
+        file_url=file_url,
+        deadline=deadline_date,
+    )
+    db.add(task)
+    db.commit()
+    db.refresh(task)
 
-        file_url = f"https://storage.googleapis.com/cloudlist-413718.appspot.com/{file_name}"
-
-        task = Task(
-            title=title,
-            email=email,
-            description=description,
-            completed=completed,
-            file_url=file_url,
-            creator_name=creator_name,
-            phone_number=phone_number,
-            deadline=deadline_date,
-        )
-
-        db.add(task)
-        db.commit()
-        db.refresh(task)
-        
+    if phone_number:
         lambda_endpoint = 'https://oypihpxobb.execute-api.eu-west-1.amazonaws.com/dev/'
-    
-        headers = {
-            'Content-Type': 'application/json'
-        }
-    
+        headers = {'Content-Type': 'application/json'}
         data = {
-            'phoneNumber': phone_number,  
-            'message': 'A new task has been assigned to you: ' + title
+            'phoneNumber': phone_number,
+            'message': f'A new task has been assigned to you: {title}'
         }
-    
         response = requests.post(lambda_endpoint, json=data, headers=headers)
-        
         if response.status_code == 200:
             print("Successfully notified about the new task.")
         else:
             print(f"Failed to send notification. Status code: {response.status_code}, Message: {response.text}")
-        
-        return task
+
+    return task
 
 
 @app.get("/tasks/", response_model=List[TaskPydantic])
