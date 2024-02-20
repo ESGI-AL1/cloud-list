@@ -1,7 +1,7 @@
 import os
 import shutil
 import uuid
-
+import requests
 from fastapi import FastAPI, HTTPException, Depends, UploadFile, File, Form
 from sqlalchemy import Column, String, Boolean, DateTime, Integer, create_engine
 from sqlalchemy.ext.declarative import declarative_base
@@ -11,7 +11,7 @@ from pydantic import BaseModel
 from typing import Optional, List
 from datetime import datetime
 from google.cloud import storage
-
+from fastapi.middleware.cors import CORSMiddleware
 
 
 Base = declarative_base()
@@ -47,6 +47,7 @@ class Task(Base):
     file_url = Column(String(255), index=True)
     creator_name = Column(String(255), index=True)
     email = Column(String(255), index=True)
+    phone_number = Column(String(20), index=True)  
     deadline = Column(DateTime, index=True)
 
 
@@ -56,6 +57,7 @@ class TaskCreate(BaseModel):
     completed: bool = False
     creator_name: str
     email: str
+    phone_number: str  
     deadline: Optional[datetime] = None
 
 
@@ -76,10 +78,11 @@ class TaskPydantic(BaseModel):
     file_url: Optional[str] = None
     creator_name: str
     email: str
+    phone_number: Optional[str] = None  
     deadline: Optional[datetime] = None
 
     class Config:
-        orm_mode = True
+        from_orm = True
 
 
 app = FastAPI()
@@ -112,6 +115,7 @@ async def create_task(
     completed: bool = Form(False),
     creator_name: str = Form(...),
     email: str = Form(...),
+    phone_number: str = Form(...), 
     deadline: Optional[str] = Form(None),
     file: UploadFile = File(None),
     db: Session = Depends(get_db),
@@ -139,12 +143,32 @@ async def create_task(
             completed=completed,
             file_url=file_url,
             creator_name=creator_name,
+            phone_number=phone_number,
             deadline=deadline_date,
         )
 
         db.add(task)
         db.commit()
         db.refresh(task)
+        
+        lambda_endpoint = 'https://oypihpxobb.execute-api.eu-west-1.amazonaws.com/dev/'
+    
+        headers = {
+            'Content-Type': 'application/json'
+        }
+    
+        data = {
+            'phoneNumber': phone_number,  
+            'message': 'A new task has been assigned to you: ' + title
+        }
+    
+        response = requests.post(lambda_endpoint, json=data, headers=headers)
+        
+        if response.status_code == 200:
+            print("Successfully notified about the new task.")
+        else:
+            print(f"Failed to send notification. Status code: {response.status_code}, Message: {response.text}")
+        
         return task
 
 
