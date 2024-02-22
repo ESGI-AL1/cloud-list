@@ -12,7 +12,15 @@ from typing import Optional, List
 from datetime import datetime
 from google.cloud import storage
 from fastapi.middleware.cors import CORSMiddleware
+from dotenv import load_dotenv
 
+load_dotenv() 
+
+cloud_sql_user = os.getenv("CLOUD_SQL_USER")
+cloud_sql_password = os.getenv("CLOUD_SQL_PASSWORD")
+cloud_sql_database = os.getenv("CLOUD_SQL_DATABASE")
+cloud_sql_connection_name = os.getenv("CLOUD_SQL_CONNECTION_NAME")
+cloud_storage_bucket_name = os.getenv("CLOUD_STORAGE_BUCKET_NAME")
 
 Base = declarative_base()
 connector = Connector()
@@ -20,18 +28,17 @@ connector = Connector()
 
 def init_connection_pool(connector: Connector):
     def getconn():
-        conn = connector.connect(
-            "cloudlist-413718:europe-west2:sql-cloudlist",
-            "pymysql",
-            user="sql-cloudlist",
-            password="cloudlist-esgi!",
-            db="todos",
+        conn = connector.connect(cloud_sql_connection_name, 
+            user=cloud_sql_user, 
+            password=cloud_sql_password,
+            db=cloud_sql_database,
             ip_type=IPTypes.PUBLIC
         )
         return conn
 
     engine = create_engine("mysql+pymysql://", creator=getconn)
     return engine
+
 
 
 engine = init_connection_pool(connector)
@@ -129,10 +136,10 @@ async def create_task(
         task_id = str(uuid.uuid4())
         file_name = f"{task_id}_{file.filename}"
         client = storage.Client()
-        bucket = client.bucket("your-bucket-name")
+        bucket = client.bucket(cloud_storage_bucket_name)
         blob = bucket.blob(file_name)
         await blob.upload_from_string(await file.read(), content_type=file.content_type)
-        file_url = f"https://storage.googleapis.com/your-bucket-name/{file_name}"
+        file_url = f"https://storage.googleapis.com/{cloud_storage_bucket_name}/{file_name}"
 
     task = Task(
         title=title,
@@ -209,8 +216,7 @@ async def update_task(
 
     if file:
         file_name = f"{uuid.uuid4()}_{file.filename}"
-        bucket_name = "cloudlist-413718.appspot.com"  
-
+        bucket_name = cloud_storage_bucket_name 
         client = storage.Client()
         bucket = client.bucket(bucket_name)
         blob = bucket.blob(file_name)
