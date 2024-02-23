@@ -11,9 +11,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from models import Task
 from database import SessionLocal
 from schemas import TaskPydantic
+from utils import upload_file_cloud_storage, trigger_lambda_aws
 
-bucket_name = os.environ.get("CLOUD_STORAGE_BUCKET_NAME")
-lambda_endpoint = os.environ.get("AWS_LAMBDA_ENDPOINT")
 
 app = FastAPI()
 
@@ -53,16 +52,7 @@ async def create_task(
     deadline_date = datetime.strptime(deadline, '%Y-%m-%d').date() if deadline else None
 
     if file:
-        task_id = str(uuid.uuid4())
-        file_name = f"{task_id}_{file.filename}"
-
-        client = storage.Client()
-        bucket = client.bucket(bucket_name=bucket_name)
-
-        blob = bucket.blob(file_name)
-        blob.upload_from_string(file.file.read(), content_type=file.content_type)
-
-        file_url = f"https://storage.googleapis.com/{bucket_name}/{file_name}"
+        file_url = upload_file_cloud_storage(file)
 
         task = Task(
             title=title,
@@ -79,21 +69,7 @@ async def create_task(
         db.commit()
         db.refresh(task)
 
-        headers = {
-            'Content-Type': 'application/json'
-        }
-
-        data = {
-            'phoneNumber': phone_number,
-            'message': 'A new task has been assigned to you: ' + title
-        }
-
-        response = requests.post(lambda_endpoint, json=data, headers=headers)
-
-        if response.status_code == 200:
-            print("Successfully notified about the new task.")
-        else:
-            print(f"Failed to send notification. Status code: {response.status_code}, Message: {response.text}")
+        trigger_lambda_aws(phone_number=phone_number, title=title)
 
         return task
 
@@ -140,15 +116,7 @@ async def update_task(
     if deadline is not None:
         task.deadline = datetime.strptime(deadline, '%Y-%m-%d').date()
     if file:
-        file_name = f"{uuid.uuid4()}_{file.filename}"
-
-        client = storage.Client()
-        bucket = client.bucket(bucket_name=bucket_name)
-
-        blob = bucket.blob(file_name)
-        blob.upload_from_string(await file.read(), content_type=file.content_type)
-
-        task.file_url = f"https://storage.googleapis.com/{bucket_name}/{file_name}"
+        task.file_url = upload_file_cloud_storage(file)
 
     db.commit()
     db.refresh(task)
