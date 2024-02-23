@@ -1,17 +1,13 @@
-import os
-import uuid
-import requests
 from fastapi import FastAPI, HTTPException, Depends, UploadFile, File, Form
 from sqlalchemy.orm import Session
 from typing import Optional, List
 from datetime import datetime
-from google.cloud import storage
 from fastapi.middleware.cors import CORSMiddleware
 
 from models import Task
 from database import SessionLocal
 from schemas import TaskPydantic
-from utils import upload_file_cloud_storage, trigger_lambda_aws
+from utils import upload_file_cloud_storage, trigger_lambda_aws, delete_file_from_cloud_storage
 
 
 app = FastAPI()
@@ -122,3 +118,19 @@ async def update_task(
     db.refresh(task)
 
     return task
+
+
+@app.delete("/tasks/{task_id}", response_model=dict)
+def delete_task(task_id: int, db: Session = Depends(get_db)):
+    task = db.query(Task).filter(Task.id == task_id).first()
+    if task is None:
+        raise HTTPException(status_code=404, detail="Task not found")
+
+    if task.file_url:
+        delete_file_from_cloud_storage(task.file_url)
+
+    db.delete(task)
+    db.commit()
+
+    return {"message": f"Task {task_id} deleted"}
+

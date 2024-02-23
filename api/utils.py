@@ -2,6 +2,7 @@ import os
 import uuid
 import requests
 from google.cloud import storage
+from urllib.parse import urlparse, unquote
 
 bucket_name = os.environ.get("CLOUD_STORAGE_BUCKET_NAME")
 lambda_endpoint = os.environ.get("AWS_LAMBDA_ENDPOINT")
@@ -18,6 +19,22 @@ def upload_file_cloud_storage(file):
     blob.upload_from_string(file.file.read(), content_type=file.content_type)
 
     return f"https://storage.googleapis.com/{bucket_name}/{file_name}"
+
+
+def delete_file_from_cloud_storage(file_url):
+    parsed_url = urlparse(unquote(file_url))
+    path_parts = parsed_url.path.lstrip('/').split('/')
+    filename = '/'.join(path_parts[1:])
+
+    client = storage.Client()
+
+    bucket = client.bucket(bucket_name)
+
+    blob = bucket.blob(filename)
+
+    blob.delete()
+
+    return f"File {filename} deleted from bucket {bucket_name}."
 
 
 def trigger_lambda_aws(phone_number, title):
