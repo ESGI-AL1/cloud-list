@@ -23,7 +23,7 @@ def init_connection_pool(connector: Connector):
             user=db_user,
             password=db_password,
             db=db_name,
-            ip_type=IPTypes.PUBLIC
+            ip_type=IPTypes.PUBLIC,
         )
         return conn
 
