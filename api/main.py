@@ -17,6 +17,7 @@ app = FastAPI()
 
 origins = [
     "http://localhost:4200",
+    "https://cloud-list-415615.lm.r.appspot.com/"
 ]
 
 app.add_middleware(
