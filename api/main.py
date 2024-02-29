@@ -50,27 +50,29 @@ async def create_task(
 ):
     deadline_date = datetime.strptime(deadline, "%Y-%m-%d").date() if deadline else None
 
+    file_url = None
     if file:
         file_url = upload_file_cloud_storage(file)
 
-        task = Task(
-            title=title,
-            email=email,
-            description=description,
-            completed=completed,
-            file_url=file_url,
-            creator_name=creator_name,
-            phone_number=phone_number,
-            deadline=deadline_date,
-        )
+    task = Task(
+        title=title,
+        email=email,
+        description=description,
+        completed=completed,
+        file_url=file_url,
+        creator_name=creator_name,
+        phone_number=phone_number,
+        deadline=deadline_date,
+    )
 
-        db.add(task)
-        db.commit()
-        db.refresh(task)
+    db.add(task)
+    db.commit()
+    db.refresh(task)
 
+    if file_url:
         trigger_lambda_aws(phone_number=phone_number, title=title)
 
-        return task
+    return task
 
 
 @app.get("/tasks/", response_model=List[TaskPydantic])
