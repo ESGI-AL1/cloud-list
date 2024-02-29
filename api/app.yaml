@@ -9,7 +9,7 @@ env_variables:
   CLOUD_SQL_CONNECTION_NAME: 'cloudlist-413718:europe-west2:sql-cloudlist'
   CLOUD_STORAGE_BUCKET_NAME: 'cloudlist-413718.appspot.com'
   AWS_LAMBDA_ENDPOINT: 'https://oypihpxobb.execute-api.eu-west-1.amazonaws.com/dev/'
-  GOOGLE_APPLICATION_CREDENTIALS: 'cloudlist-413718-9dc4353d87ad.json'
+  GOOGLE_APPLICATION_CREDENTIALS: 'cloudlist-413718-554ec9f693fc.json'
 
 
 service_account: 'cloudlist-api@cloudlist-413718.iam.gserviceaccount.com'
