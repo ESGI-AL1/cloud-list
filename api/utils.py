@@ -57,7 +57,7 @@ def trigger_lambda_aws(phone_number, title):
         )
 
 
-def sign_url(file_url, expires_after_seconds=60):
+def sign_url(file_url, expires_after_seconds=3600):
     try:
         credentials = service_account.Credentials.from_service_account_file(
             service_account_file

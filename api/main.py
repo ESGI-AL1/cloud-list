@@ -15,10 +15,17 @@ from utils import (
 
 app = FastAPI()
 
+origins = [
+    "http://localhost:4200"
+    "http://localhost:3000"
+    "https://cloud-list-415615.lm.r.appspot.com/",
+    "https://cloud-list-415615.lm.r.appspot.com",
+    "*"
+]
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
