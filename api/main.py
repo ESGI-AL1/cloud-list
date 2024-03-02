@@ -16,10 +16,11 @@ from utils import (
 app = FastAPI()
 
 origins = [
-    "http://localhost:4200"
-    "http://localhost:3000"
-    "https://cloud-list-415615.lm.r.appspot.com/",
+    # For development
+    "http://localhost:4200" 
+    # App Engine URL
     "https://cloud-list-415615.lm.r.appspot.com",
+    "https://cloud-list-415615.lm.r.appspot.com/",
     "*"
 ]
 
