@@ -1,9 +1,11 @@
 google-cloud-storage==2.14.0
-sqlalchemy==2.0.26
+sqlalchemy==2.0.27
 python-multipart==0.0.9
-pydantic==2.6.1
-cloud-sql-python-connector==1.6.0
+pydantic==2.6.2
+cloud-sql-python-connector==1.7.0
 pymysql==1.1.0
-fastapi==0.109.2
+fastapi==0.110.0
 gunicorn==21.2.0
 uvicorn==0.27.1
+python-dotenv==1.0.1
+google-cloud-secret-manager==2.18.2
