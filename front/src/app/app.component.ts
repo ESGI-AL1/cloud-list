@@ -1,6 +1,14 @@
-import {Component, HostListener, OnInit} from '@angular/core';
+import {Component, ElementRef, HostListener, OnInit, ViewChild} from '@angular/core';
 import { RouterOutlet } from '@angular/router';
-import {FormBuilder, FormControl, FormGroup, FormsModule, ReactiveFormsModule, Validators} from "@angular/forms";
+import {
+  AbstractControl,
+  FormBuilder,
+  FormControl,
+  FormGroup,
+  FormsModule,
+  ReactiveFormsModule,
+  Validators
+} from "@angular/forms";
 import {DatePipe, NgClass, NgForOf, NgIf} from "@angular/common";
 import {TaskServicesService} from "./Services/task-services.service";
 import {Task} from "./Models/Task";
@@ -22,15 +30,22 @@ export class AppComponent implements OnInit{
   taskTitle: string = '';
   protected isToggleTaskForm: boolean = false;
   protected tasks: Task[] | undefined = undefined;
+  protected tmpTask: Task[] | undefined = undefined;
   showModal = false;
   selectedTask: Task | null = null;
   public isToggleUpdateForm: boolean = false;
   isNotToggleForm: boolean = true;
+  public toggleSpinner = true ;
 
   constructor(private formBuilder : FormBuilder , private taskService: TaskServicesService){}
   ngOnInit() {
     this.taskService.getAllTask().subscribe(result=>{
+      this.tmpTask = result
+
       this.tasks = result
+      if(this.tasks){
+        this.toggleSpinner = false
+      }
     })
   }
 
@@ -42,7 +57,9 @@ export class AppComponent implements OnInit{
     creator_name: new FormControl('', Validators.required),
     deadline: new FormControl(''),
     file: new FormControl(null),
-    email: new FormControl('', [Validators.required, Validators.email])})
+    email: new FormControl('', [Validators.required, Validators.email]),
+    phone_number: new FormControl('', [Validators.required,this.frenchPhoneNumberValidator])
+  })
 
   initializeForm(): void {
     this.updateForm = this.formBuilder.group({
@@ -52,7 +69,9 @@ export class AppComponent implements OnInit{
       creator_name: [''],
       deadline: [''],
       file: [null],
-      email:['',[Validators.required, Validators.email]]
+      email:['',[Validators.required, Validators.email]],
+      phone_number: new FormControl('', [Validators.required,this.frenchPhoneNumberValidator])
+
     });
   }
 
@@ -63,6 +82,7 @@ export class AppComponent implements OnInit{
       description: task.description,
       completed: task.completed,
       creator_name: task.creator_name,
+      phone_number: task.phone_number,
       deadline: task.deadline ? new Date(task.deadline).toISOString().substring(0, 10) : null,
     });
     if (task.file_url) {
@@ -72,11 +92,13 @@ export class AppComponent implements OnInit{
       this.existingFileName = '';
     }
 
+
   }
 
   updateTask(taskId: string | null | undefined): void {
     if(taskId){
       if (this.updateForm) {
+        this.toggleSpinner=true
         const formData = new FormData();
         Object.keys(this.updateForm.value).forEach(key => {
           const control = this.updateForm.get(key);
@@ -96,6 +118,7 @@ export class AppComponent implements OnInit{
         });
 
         this.taskService.updateTask(taskId, formData).subscribe({
+
           next: (response) => {console.log('Task updated successfully', response);
             this.isNotToggleForm= true
             this.isToggleTaskForm = false
@@ -124,6 +147,17 @@ export class AppComponent implements OnInit{
 
   }
 
+
+  frenchPhoneNumberValidator(control: AbstractControl): { [key: string]: any } | null {
+    const phoneNumberRegex = /^(?:(?:(?:\+|00)33[\s.-]{0,3}(?:\(0\)[\s.-]{0,3})?)|0)(?:[\s.-]{0,3}[1-9](?:(?:[\s.-]?\d){1,}){8})$/;
+
+    if (!phoneNumberRegex.test(control.value)) {
+      return { 'frenchPhoneNumber': { value: control.value } };
+    }
+
+    return null;
+  }
+
   valid() {
     if (this.taskForm.invalid) {
       return;
@@ -135,6 +169,7 @@ export class AppComponent implements OnInit{
     formData.append('completed', String(this.taskForm.get('completed')?.value ?? false));
     formData.append('creator_name', this.taskForm.get('creator_name')?.value ?? '');
     formData.append('email', this.taskForm.get('email')?.value ?? '');
+    formData.append('phone_number', this.taskForm.get('phone_number')?.value ?? '');
 
     const deadline = this.taskForm.get('deadline')?.value
     if (deadline) {
@@ -150,6 +185,7 @@ export class AppComponent implements OnInit{
     if (fileControl && fileControl.value) {
       formData.append('file', fileControl.value);
     }
+    this.toggleSpinner=true
 
     this.taskService.createTaskFormData(formData).pipe(
       finalize(() => {
@@ -169,12 +205,15 @@ export class AppComponent implements OnInit{
     if(this.taskForm && this.isToggleTaskForm)
     if (event.target.files.length > 0) {
       const file = event.target.files[0];
+      this.existingFileName = file ? file.name : '';
+
       this.taskForm.patchValue({ file: file });
     }
     if(this.updateForm && this.isToggleUpdateForm){
       if (event.target.files.length > 0) {
         const file = event.target.files[0];
-        this.taskForm.patchValue({ file: file });
+        this.existingFileName = file ? file.name : '';
+        this.updateForm.patchValue({ file: file });
       }
     }
   }
@@ -185,7 +224,7 @@ export class AppComponent implements OnInit{
     if(this.activeTag==="completed" && completedTasks){
       this.tasks= this.tasks?.filter(task=> task.completed)
     }else{
-      this.ngOnInit()
+      this.tasks = this.tmpTask
     }
   }
 
@@ -234,13 +273,15 @@ export class AppComponent implements OnInit{
   }
 
   confirmDeleteSelectedTask(task: Task|null) {
-    if(task && task.id)
+    if(task && task.id){
+      this.toggleSpinner = true
     this.taskService.deleteByTaskId(task.id).subscribe(res=>{
       if(res){
-        this.ngOnInit()
         this.showModalDelete = false
+        this.ngOnInit()
       }
     })
+    }
 
   }
   cancelTaskCreation() {
@@ -258,6 +299,8 @@ export class AppComponent implements OnInit{
     this.isNotToggleForm = false
     this.selectedTask= task
     this.initializeForm()
+    console.log("je suis dans le details task")
+    console.log(task)
     this.loadTaskDetails(task)
 
   }
@@ -270,14 +313,13 @@ export class AppComponent implements OnInit{
   }
 
 
-  // Dans votre composant Angular
 
   isSelectedTaskAnImage(): boolean {
-    if (!this.selectedTask?.file_url) {
+    if (!this.selectedTask?.signed_url) {
       return false;
     } else {
       const imageExtensions = ['png', 'jpg', 'jpeg', 'gif'];
-      const extension = this.selectedTask.file_url.split('.').pop()?.toLowerCase() ?? "";
+      const extension = this.selectedTask.signed_url.split('.').pop()?.toLowerCase() ?? "";
       return imageExtensions.includes(extension);
     }
   }

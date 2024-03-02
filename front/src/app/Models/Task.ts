@@ -4,9 +4,12 @@ export interface Task {
   title: string;
   description?: string | null;
   completed: boolean;
-  file_url?: string | null;
+  signed_url?: string | null;
   creator_name: string;
   deadline?: Date
   file?: any
   email:string
+  "phone_number": "string",
+  file_url?: string |null
+
 }

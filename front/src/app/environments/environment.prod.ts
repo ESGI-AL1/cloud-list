@@ -1,4 +1,4 @@
 export const environment = {
-  production: false,
-  apiUrl: 'https://api.monserveurpreprod.com'
+  production: true,
+  apiUrl: 'https://cloudlist-413718.nw.r.appspot.com'
 };

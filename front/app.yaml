@@ -1,0 +1,19 @@
+runtime: nodejs20
+env: standard
+
+handlers:
+  - url: /
+    static_files: dist/front/browser/index.html
+    upload: dist/front/browser/index.html
+    http_headers:
+      Access-Control-Allow-Origin: "*"
+      Access-Control-Allow-Methods: "GET, POST, PUT, DELETE, OPTIONS"
+      Access-Control-Allow-Headers: "Origin, X-Requested-With, Content-Type, Accept"
+
+  - url: /(.*)
+    static_files: dist/front/browser/\1
+    upload: dist/front/browser/(.*)
+    http_headers:
+      Access-Control-Allow-Origin: "*"
+      Access-Control-Allow-Methods: "GET, POST, PUT, DELETE, OPTIONS"
+      Access-Control-Allow-Headers: "Origin, X-Requested-With, Content-Type, Accept"
