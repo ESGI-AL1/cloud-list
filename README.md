@@ -16,4 +16,3 @@ This project uses various cloud services, you can check how and why we use these
     - AWS Lambda: If the endpoint has been triggerd, a AWS Lamba function is triggered to send a mobile notification to alert that a new task as been created.
     - AWS SNS: This service is used to handle mobile phone notifications when a new task is created if a phone number has been provided.
  
-  
